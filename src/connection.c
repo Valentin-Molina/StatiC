@@ -1,8 +1,7 @@
 #include "connection.h"
 
-#include <unistd.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 
 void CloseConnection(Connection* connection)
 {
