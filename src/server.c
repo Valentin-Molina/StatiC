@@ -8,6 +8,8 @@
 #include <unistd.h>
 
 #include "connection.h"
+#include "parser.h"
+#include "request.h"
 
 #define RECEPTION_BUFFER_SIZE 1024
 
@@ -89,10 +91,16 @@ void RunServer(Server* const server)
         fwrite(reception_buffer, 1, bytes_received, stdout);
         printf("\n");
 
+        HttpRequestParser parser = {0};
+        parser.src               = reception_buffer;
+        parser.len               = bytes_received;
+        HttpRequest request      = {0};
+        ParseRequest(&parser, &request);
+
         printf("Responding... ");
         const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";
         send(connection.connection_fd, response, strlen(response), 0);
         printf("Done.\n");
-        // CloseConnection(&connection);
+        CloseConnection(&connection);
     }
 }

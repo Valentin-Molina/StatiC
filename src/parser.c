@@ -1,29 +1,25 @@
+#include "parser.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CREATE_STRING(s)                                                       \
-    (String) { (s), sizeof(s) - 1 }
-
-typedef struct
-{
-    char* content;
-    size_t len;
-} String;
-
 static const String token_special_characters = {
     .content = "!#$%&'*+-.^_`|~", .len = sizeof("!#$%&'*+-.^_`|~") - 1};
 
-bool IsDigit(char character) { return character >= '0' && character <= '9'; }
+static bool IsDigit(char character)
+{
+    return character >= '0' && character <= '9';
+}
 
-bool IsAlpha(char character)
+static bool IsAlpha(char character)
 {
     return (character >= 'a' && character <= 'z') ||
            (character >= 'A' && character <= 'Z');
 }
 
-bool IsOneOff(char character, const String* str)
+static bool IsOneOff(char character, const String* str)
 {
     for (size_t i = 0; i < str->len; i++) {
         if (character == *(str->content + i))
@@ -32,30 +28,19 @@ bool IsOneOff(char character, const String* str)
     return false;
 }
 
-bool IsTokenCharacter(char character)
+static bool IsTokenCharacter(char character)
 {
     return IsAlpha(character) || IsDigit(character) ||
            IsOneOff(character, &token_special_characters);
 }
 
-// Minimum requirements:
-// * HTTP 1.0 and 1.1
-// * Parse GET
-// * Parse HEAD
-// * Validate Host header
-typedef struct
-{
-    char* src;
-    size_t cursor;
-    size_t len;
-} HttpRequestParser;
-
-bool HasParserReachedEnd(HttpRequestParser* parser)
+static bool HasParserReachedEnd(HttpRequestParser* parser)
 {
     return parser->len == parser->cursor;
 }
 
-bool ParseRequiredString(HttpRequestParser* parser, String required_string)
+static bool ParseRequiredString(HttpRequestParser* parser,
+                                String required_string)
 {
     if (required_string.len == 0) {
         return false;
@@ -76,7 +61,7 @@ bool ParseRequiredString(HttpRequestParser* parser, String required_string)
     return true;
 }
 
-bool ParseMethod(HttpRequestParser* parser, String* method)
+static bool ParseMethod(HttpRequestParser* parser, String* method)
 {
     // The method is the first element of the HTTP request.
     parser->cursor  = 0;
@@ -104,7 +89,7 @@ bool ParseMethod(HttpRequestParser* parser, String* method)
     return true;
 }
 
-bool ParseTarget(HttpRequestParser* parser, String* target)
+static bool ParseTarget(HttpRequestParser* parser, String* target)
 {
     // The target comes after the method.
     size_t init_cursor = parser->cursor;
@@ -125,7 +110,7 @@ bool ParseTarget(HttpRequestParser* parser, String* target)
     return true;
 }
 
-bool ParseVersion(HttpRequestParser* parser, int* version_minor)
+static bool ParseVersion(HttpRequestParser* parser, int* version_minor)
 {
     if (ParseRequiredString(parser, CREATE_STRING("HTTP/1.0\r\n"))) {
         *version_minor = 0;
@@ -136,4 +121,18 @@ bool ParseVersion(HttpRequestParser* parser, int* version_minor)
         return true;
     }
     return false;
+}
+
+bool ParseRequest(HttpRequestParser* parser, HttpRequest* request)
+{
+    if (!ParseMethod(parser, &request->method)) {
+        return false;
+    }
+    if (!ParseTarget(parser, &request->target)) {
+        return false;
+    }
+    if (!ParseVersion(parser, &request->http_version_minor)) {
+        return false;
+    }
+    return true;
 }

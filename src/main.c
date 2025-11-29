@@ -34,6 +34,7 @@ int main(int argc, char** argv)
     Server server = {0};
     InitServer(&server, ip, port);
     RunServer(&server);
-    ShutdownServer(&server);
+    ShutdownServer(
+        &server); // FIXME(Valentin): add signal handler to clean up server.
     return 0;
 }
