@@ -3,11 +3,14 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "connection.h"
+#include "parser.h"
+#include "request.h"
 
 #define RECEPTION_BUFFER_SIZE 1024
 
@@ -74,9 +77,10 @@ void RunServer(Server* const server)
 
         char reception_buffer[RECEPTION_BUFFER_SIZE] = {0};
         ssize_t bytes_received                       = 0;
-        printf("Receiving\n");
+        printf("Receiving...\n");
 
-        // Reception only of the first 1024 bytes
+        // FIXME(Valentin): Receive all the data and run parser while receiving
+        // the data. Reception only of the first 1024 bytes
         bytes_received = recv(connection.connection_fd, reception_buffer,
                               RECEPTION_BUFFER_SIZE, 0);
         if (bytes_received == -1) {
@@ -85,14 +89,35 @@ void RunServer(Server* const server)
             CloseConnection(&connection);
             continue;
         }
-        printf("received: ");
+        printf("Received:\n");
         fwrite(reception_buffer, 1, bytes_received, stdout);
+        printf("\n");
+
+        printf("Parsing...\n");
+        HttpRequestParser parser = {0};
+        parser.src               = reception_buffer;
+        parser.len               = bytes_received;
+        HttpRequest request      = {0};
+        if (!ParseRequest(&parser, &request)) {
+            printf("Unable to parse request !\n");
+        } else {
+            printf("Received %.*s for %.*s\n", (int)request.method.len,
+                   request.method.content, (int)request.target.len,
+                   request.target.content);
+            printf("Headers:\n");
+            for (size_t i = 0; i < request.headers_count; i++) {
+                printf("* %.*s -> %.*s\n", (int)request.headers[i].name.len,
+                       request.headers[i].name.content,
+                       (int)request.headers[i].value.len,
+                       request.headers[i].value.content);
+            }
+        }
         printf("\n");
 
         printf("Responding... ");
         const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";
         send(connection.connection_fd, response, strlen(response), 0);
         printf("Done.\n");
-        // CloseConnection(&connection);
+        CloseConnection(&connection);
     }
 }

@@ -13,6 +13,15 @@ set(SOURCES
     src/main.c
     src/server.c
     src/connection.c
+    src/parser.c
 )
 
 add_executable(static ${SOURCES})
+
+option(BUILD_TESTING "Build static unit test")
+if(BUILD_TESTING) 
+    enable_testing()    
+    add_executable(test_parser test/test_parser.c src/parser.c)
+    add_test(NAME test_parser
+         COMMAND test_parser)
+endif()
