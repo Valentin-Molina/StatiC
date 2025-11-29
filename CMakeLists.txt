@@ -13,6 +13,7 @@ set(SOURCES
     src/main.c
     src/server.c
     src/connection.c
+    src/parser.c
 )
 
 add_executable(static ${SOURCES})
