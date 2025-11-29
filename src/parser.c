@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "request.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -123,6 +124,103 @@ static bool ParseVersion(HttpRequestParser* parser, int* version_minor)
     return false;
 }
 
+static bool ParseHeaderName(HttpRequestParser* parser, String* header_name)
+{
+    size_t init_cursor   = parser->cursor;
+    header_name->content = parser->src + init_cursor;
+    // Header name can't be empty
+    if (HasParserReachedEnd(parser) ||
+        !IsTokenCharacter(parser->src[parser->cursor])) {
+        return false;
+    }
+    parser->cursor++;
+
+    // Iterate over the hearder name to get its length
+    while (!HasParserReachedEnd(parser) &&
+           IsTokenCharacter(parser->src[parser->cursor])) {
+        parser->cursor++;
+    }
+    header_name->len = parser->cursor - init_cursor;
+
+    // Header name ends with ':'
+    if (HasParserReachedEnd(parser) || (parser->src[parser->cursor] != ':')) {
+        return false;
+    }
+    parser->cursor++;
+    return true;
+}
+
+/** Only support ASCII characters */
+static bool IsVisibleCharacter(char character)
+{
+    return (character >= ' ' && character <= '~');
+}
+
+static void IgnoreWhiteSpacesAndTabs(HttpRequestParser* parser)
+{
+    while (!HasParserReachedEnd(parser) &&
+           ((parser->src[parser->cursor] != ' ') ||
+            parser->src[parser->cursor] != '\t')) {
+        parser->cursor++;
+    }
+}
+
+static bool ParseHeaderValue(HttpRequestParser* parser, String* header_value)
+{
+    IgnoreWhiteSpacesAndTabs(parser);
+
+    size_t init_cursor    = parser->cursor;
+    header_value->content = parser->src + init_cursor;
+
+    // Iterate over the hearder value to get its length
+    while (!HasParserReachedEnd(parser) &&
+           IsVisibleCharacter(parser->src[parser->cursor])) {
+        parser->cursor++;
+    }
+    // Remove trailing white spaces and tabs
+    while ((parser->cursor - 1 != init_cursor) &&
+           ((parser->src[parser->cursor - 1] == ' ') ||
+            parser->src[parser->cursor - 1] == '\t')) {
+        parser->cursor--;
+    }
+    header_value->len = parser->cursor - init_cursor;
+
+    IgnoreWhiteSpacesAndTabs(parser);
+
+    if (!ParseRequiredString(parser, CREATE_STRING("\r\n"))) {
+        return false;
+    }
+    return true;
+}
+
+static bool ParseHeader(HttpRequestParser* parser, HttpHeader* header)
+{
+    if (!ParseHeaderName(parser, &header->name)) {
+        return false;
+    }
+    if (!ParseHeaderValue(parser, &header->value)) {
+        return false;
+    }
+    return true;
+}
+
+static bool ParseHeaderList(HttpRequestParser* parser, HttpHeader* headers,
+                            size_t* headers_count)
+{
+    size_t current_headers_count = 0;
+    while (!ParseRequiredString(parser, CREATE_STRING("\r\n"))) {
+        if (current_headers_count == MAX_HEADERS_COUNT) {
+            return false;
+        }
+        if (!ParseHeader(parser, &headers[current_headers_count])) {
+            return false;
+        }
+        current_headers_count++;
+    }
+    *headers_count = current_headers_count;
+    return true;
+}
+
 bool ParseRequest(HttpRequestParser* parser, HttpRequest* request)
 {
     if (!ParseMethod(parser, &request->method)) {
@@ -132,6 +230,9 @@ bool ParseRequest(HttpRequestParser* parser, HttpRequest* request)
         return false;
     }
     if (!ParseVersion(parser, &request->http_version_minor)) {
+        return false;
+    }
+    if (!ParseHeaderList(parser, request->headers, &request->headers_count)) {
         return false;
     }
     return true;

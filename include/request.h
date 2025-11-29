@@ -18,11 +18,16 @@ typedef struct {
     String value;
 } HttpHeader;
 
+#define MAX_HEADERS_COUNT 64
+
+/** Http Request dedicated to a simple static web server. The body is not considered.
+ */
 typedef struct {
     String method;
     String target;
     int http_version_minor;
-    // TODO(Valentin): Add headers.
+    size_t headers_count;
+    HttpHeader headers[MAX_HEADERS_COUNT];
 } HttpRequest;
 
 #endif // REQUEST_H

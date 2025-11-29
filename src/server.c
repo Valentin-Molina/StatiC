@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -78,7 +79,8 @@ void RunServer(Server* const server)
         ssize_t bytes_received                       = 0;
         printf("Receiving\n");
 
-        // Reception only of the first 1024 bytes
+        // FIXME(Valentin): Receive all the data and run parser while receiving
+        // the data. Reception only of the first 1024 bytes
         bytes_received = recv(connection.connection_fd, reception_buffer,
                               RECEPTION_BUFFER_SIZE, 0);
         if (bytes_received == -1) {
@@ -95,7 +97,20 @@ void RunServer(Server* const server)
         parser.src               = reception_buffer;
         parser.len               = bytes_received;
         HttpRequest request      = {0};
-        ParseRequest(&parser, &request);
+        if (!ParseRequest(&parser, &request)) {
+            printf("Unable to parse request\n");
+        } else {
+            printf("Received %.*s for %.*s\n", (int)request.method.len,
+                   request.method.content, (int)request.target.len,
+                   request.target.content);
+            for (size_t i = 0; i < request.headers_count; i++) {
+                printf("Hearder %.*s -> %.*s\n",
+                       (int)request.headers[i].name.len,
+                       request.headers[i].name.content,
+                       (int)request.headers[i].value.len,
+                       request.headers[i].value.content);
+            }
+        }
 
         printf("Responding... ");
         const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";
