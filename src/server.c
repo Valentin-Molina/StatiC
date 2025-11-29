@@ -77,7 +77,7 @@ void RunServer(Server* const server)
 
         char reception_buffer[RECEPTION_BUFFER_SIZE] = {0};
         ssize_t bytes_received                       = 0;
-        printf("Receiving\n");
+        printf("Receiving...\n");
 
         // FIXME(Valentin): Receive all the data and run parser while receiving
         // the data. Reception only of the first 1024 bytes
@@ -89,28 +89,30 @@ void RunServer(Server* const server)
             CloseConnection(&connection);
             continue;
         }
-        printf("received: ");
+        printf("Received:\n");
         fwrite(reception_buffer, 1, bytes_received, stdout);
         printf("\n");
 
+        printf("Parsing...\n");
         HttpRequestParser parser = {0};
         parser.src               = reception_buffer;
         parser.len               = bytes_received;
         HttpRequest request      = {0};
         if (!ParseRequest(&parser, &request)) {
-            printf("Unable to parse request\n");
+            printf("Unable to parse request !\n");
         } else {
             printf("Received %.*s for %.*s\n", (int)request.method.len,
                    request.method.content, (int)request.target.len,
                    request.target.content);
+            printf("Headers:\n");
             for (size_t i = 0; i < request.headers_count; i++) {
-                printf("Hearder %.*s -> %.*s\n",
-                       (int)request.headers[i].name.len,
+                printf("* %.*s -> %.*s\n", (int)request.headers[i].name.len,
                        request.headers[i].name.content,
                        (int)request.headers[i].value.len,
                        request.headers[i].value.content);
             }
         }
+        printf("\n");
 
         printf("Responding... ");
         const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";

@@ -83,7 +83,7 @@ static bool ParseMethod(HttpRequestParser* parser, String* method)
     method->len = parser->cursor;
 
     // The method should be separated from the target by a space
-    if (HasParserReachedEnd(parser) || !(parser->src[parser->cursor] != ' ')) {
+    if (HasParserReachedEnd(parser) || (parser->src[parser->cursor] != ' ')) {
         return false;
     }
     parser->cursor++;
@@ -97,7 +97,7 @@ static bool ParseTarget(HttpRequestParser* parser, String* target)
     target->content    = parser->src + init_cursor;
 
     // Iterate over the target to get its length
-    while (!HasParserReachedEnd(parser) ||
+    while (!HasParserReachedEnd(parser) &&
            (parser->src[parser->cursor] != ' ')) {
         parser->cursor++;
     }
@@ -159,8 +159,8 @@ static bool IsVisibleCharacter(char character)
 static void IgnoreWhiteSpacesAndTabs(HttpRequestParser* parser)
 {
     while (!HasParserReachedEnd(parser) &&
-           ((parser->src[parser->cursor] != ' ') ||
-            parser->src[parser->cursor] != '\t')) {
+           ((parser->src[parser->cursor] == ' ') ||
+            parser->src[parser->cursor] == '\t')) {
         parser->cursor++;
     }
 }
@@ -224,15 +224,19 @@ static bool ParseHeaderList(HttpRequestParser* parser, HttpHeader* headers,
 bool ParseRequest(HttpRequestParser* parser, HttpRequest* request)
 {
     if (!ParseMethod(parser, &request->method)) {
+        printf("ERR: Method parsing fail\n");
         return false;
     }
     if (!ParseTarget(parser, &request->target)) {
+        printf("ERR: Target parsing fail\n");
         return false;
     }
     if (!ParseVersion(parser, &request->http_version_minor)) {
+        printf("ERR: Version parsing fail\n");
         return false;
     }
     if (!ParseHeaderList(parser, request->headers, &request->headers_count)) {
+        printf("ERR: Header list parsing fail\n");
         return false;
     }
     return true;
