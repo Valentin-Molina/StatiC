@@ -21,7 +21,8 @@ void ShutdownServer(Server* server)
     printf("Done.\n");
 }
 
-void InitServer(Server* server, char* address, uint32_t port)
+void InitServer(Server* server, const char* address, uint32_t port,
+                const char* root)
 {
     printf("Initialising server on %s:%d... ", address, port);
     server->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -43,6 +44,8 @@ void InitServer(Server* server, char* address, uint32_t port)
         printf("Fail to start listening on socket.\n");
         return;
     }
+    // TODO: Validate the root. Must be an existing folder.
+    server->root = root;
     printf("Done.\n");
 }
 
@@ -114,9 +117,41 @@ void RunServer(Server* const server)
         }
         printf("\n");
 
-        printf("Responding... ");
-        const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        send(connection.connection_fd, response, strlen(response), 0);
+        // HACK: This code should be sanitized. Only for testing purposes !!!
+        char file_path[128] = {0};
+        strcpy(file_path, server->root);
+        const int root_len  = strlen(file_path);
+        file_path[root_len] = '/';
+        strncpy(file_path + root_len + 1, request.target.data,
+                request.target.len);
+        printf("Opening file %s...\n", file_path);
+        FILE* file = fopen(file_path, "rb");
+        if (file) {
+            printf("File open.\n");
+            printf("Responding... \n");
+
+            // TODO: Add content size.
+            const char* response =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n";
+            send(connection.connection_fd, response, strlen(response), 0);
+
+            char buf[4096];
+            while (!feof(file)) {
+                size_t n = fread(buf, 1, sizeof(buf), file);
+                if (n > 0)
+                    send(connection.connection_fd, buf, n, 0);
+            }
+            fclose(file);
+
+            const char* end = "\r\n";
+            send(connection.connection_fd, end, strlen(end), 0);
+        } else {
+            printf("ERR: unable to open file\n");
+            printf("Responding...\n ");
+            const char* response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+            send(connection.connection_fd, response, strlen(response), 0);
+        }
+
         printf("Done.\n");
         CloseConnection(&connection);
     }
