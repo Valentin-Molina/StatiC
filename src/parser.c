@@ -1,13 +1,14 @@
 #include "parser.h"
 #include "request.h"
+#include "string_view.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-static const String token_special_characters = {
-    .content = "!#$%&'*+-.^_`|~", .len = sizeof("!#$%&'*+-.^_`|~") - 1};
+static const StringView token_special_characters = {
+    .data = "!#$%&'*+-.^_`|~", .len = sizeof("!#$%&'*+-.^_`|~") - 1};
 
 static bool IsDigit(char character)
 {
@@ -20,10 +21,10 @@ static bool IsAlpha(char character)
            (character >= 'A' && character <= 'Z');
 }
 
-static bool IsOneOff(char character, const String* str)
+static bool IsOneOff(char character, const StringView* str)
 {
     for (size_t i = 0; i < str->len; i++) {
-        if (character == *(str->content + i))
+        if (character == *(str->data + i))
             return true;
     }
     return false;
@@ -40,8 +41,8 @@ static bool HasParserReachedEnd(HttpRequestParser* parser)
     return parser->len == parser->cursor;
 }
 
-static bool ParseRequiredString(HttpRequestParser* parser,
-                                String required_string)
+static bool ParseRequiredString(HttpRequestParser* const parser,
+                                StringView required_string)
 {
     if (required_string.len == 0) {
         return false;
@@ -53,7 +54,7 @@ static bool ParseRequiredString(HttpRequestParser* parser,
     }
 
     for (size_t i = 0; i < required_string.len; i++) {
-        if (parser->src[parser->cursor + i] != required_string.content[i]) {
+        if (parser->src[parser->cursor + i] != required_string.data[i]) {
             return false;
         }
     }
@@ -62,11 +63,12 @@ static bool ParseRequiredString(HttpRequestParser* parser,
     return true;
 }
 
-static bool ParseMethod(HttpRequestParser* parser, String* method)
+static bool ParseMethod(HttpRequestParser* const parser,
+                        StringView* const method)
 {
     // The method is the first element of the HTTP request.
-    parser->cursor  = 0;
-    method->content = parser->src;
+    parser->cursor = 0;
+    method->data   = parser->src;
 
     // The method should not be empty.
     if (HasParserReachedEnd(parser) ||
@@ -90,11 +92,12 @@ static bool ParseMethod(HttpRequestParser* parser, String* method)
     return true;
 }
 
-static bool ParseTarget(HttpRequestParser* parser, String* target)
+static bool ParseTarget(HttpRequestParser* const parser,
+                        StringView* const target)
 {
     // The target comes after the method.
     size_t init_cursor = parser->cursor;
-    target->content    = parser->src + init_cursor;
+    target->data       = parser->src + init_cursor;
 
     // Iterate over the target to get its length
     while (!HasParserReachedEnd(parser) &&
@@ -111,7 +114,8 @@ static bool ParseTarget(HttpRequestParser* parser, String* target)
     return true;
 }
 
-static bool ParseVersion(HttpRequestParser* parser, int* version_minor)
+static bool ParseVersion(HttpRequestParser* const parser,
+                         int* const version_minor)
 {
     if (ParseRequiredString(parser, CREATE_STRING("HTTP/1.0\r\n"))) {
         *version_minor = 0;
@@ -124,10 +128,11 @@ static bool ParseVersion(HttpRequestParser* parser, int* version_minor)
     return false;
 }
 
-static bool ParseHeaderName(HttpRequestParser* parser, String* header_name)
+static bool ParseHeaderName(HttpRequestParser* const parser,
+                            StringView* const header_name)
 {
-    size_t init_cursor   = parser->cursor;
-    header_name->content = parser->src + init_cursor;
+    size_t init_cursor = parser->cursor;
+    header_name->data  = parser->src + init_cursor;
     // Header name can't be empty
     if (HasParserReachedEnd(parser) ||
         !IsTokenCharacter(parser->src[parser->cursor])) {
@@ -156,7 +161,7 @@ static bool IsVisibleCharacter(char character)
     return (character >= ' ' && character <= '~');
 }
 
-static void IgnoreWhiteSpacesAndTabs(HttpRequestParser* parser)
+static void IgnoreWhiteSpacesAndTabs(HttpRequestParser* const parser)
 {
     while (!HasParserReachedEnd(parser) &&
            ((parser->src[parser->cursor] == ' ') ||
@@ -165,12 +170,13 @@ static void IgnoreWhiteSpacesAndTabs(HttpRequestParser* parser)
     }
 }
 
-static bool ParseHeaderValue(HttpRequestParser* parser, String* header_value)
+static bool ParseHeaderValue(HttpRequestParser* const parser,
+                             StringView* const header_value)
 {
     IgnoreWhiteSpacesAndTabs(parser);
 
-    size_t init_cursor    = parser->cursor;
-    header_value->content = parser->src + init_cursor;
+    size_t init_cursor = parser->cursor;
+    header_value->data = parser->src + init_cursor;
 
     // Iterate over the hearder value to get its length
     while (!HasParserReachedEnd(parser) &&
@@ -193,7 +199,8 @@ static bool ParseHeaderValue(HttpRequestParser* parser, String* header_value)
     return true;
 }
 
-static bool ParseHeader(HttpRequestParser* parser, HttpHeader* header)
+static bool ParseHeader(HttpRequestParser* const parser,
+                        HttpHeader* const header)
 {
     if (!ParseHeaderName(parser, &header->name)) {
         return false;
@@ -204,8 +211,9 @@ static bool ParseHeader(HttpRequestParser* parser, HttpHeader* header)
     return true;
 }
 
-static bool ParseHeaderList(HttpRequestParser* parser, HttpHeader* headers,
-                            size_t* headers_count)
+static bool ParseHeaderList(HttpRequestParser* const parser,
+                            HttpHeader* const headers,
+                            size_t* const headers_count)
 {
     size_t current_headers_count = 0;
     while (!ParseRequiredString(parser, CREATE_STRING("\r\n"))) {
@@ -221,7 +229,7 @@ static bool ParseHeaderList(HttpRequestParser* parser, HttpHeader* headers,
     return true;
 }
 
-bool ParseRequest(HttpRequestParser* parser, HttpRequest* request)
+bool ParseRequest(HttpRequestParser* const parser, HttpRequest* const request)
 {
     if (!ParseMethod(parser, &request->method)) {
         printf("ERR: Method parsing fail\n");

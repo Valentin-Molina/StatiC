@@ -102,14 +102,14 @@ void RunServer(Server* const server)
             printf("Unable to parse request !\n");
         } else {
             printf("Received %.*s for %.*s\n", (int)request.method.len,
-                   request.method.content, (int)request.target.len,
-                   request.target.content);
+                   request.method.data, (int)request.target.len,
+                   request.target.data);
             printf("Headers:\n");
             for (size_t i = 0; i < request.headers_count; i++) {
                 printf("* %.*s -> %.*s\n", (int)request.headers[i].name.len,
-                       request.headers[i].name.content,
+                       request.headers[i].name.data,
                        (int)request.headers[i].value.len,
-                       request.headers[i].value.content);
+                       request.headers[i].value.data);
             }
         }
         printf("\n");

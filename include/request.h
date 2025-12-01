@@ -1,21 +1,11 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
-#include <stddef.h>
-
-#define CREATE_STRING(s)                                                       \
-    (String) { (s), sizeof(s) - 1 }
-
-// TODO(Valentin): is char* a good idea ?
-typedef struct
-{
-    char* content;
-    size_t len;
-} String;
+#include "string_view.h"
 
 typedef struct {
-    String name;
-    String value;
+    StringView name;
+    StringView value;
 } HttpHeader;
 
 #define MAX_HEADERS_COUNT 64
@@ -23,8 +13,8 @@ typedef struct {
 /** Http Request dedicated to a simple static web server. The body is not considered.
  */
 typedef struct {
-    String method;
-    String target;
+    StringView method;
+    StringView target;
     int http_version_minor;
     size_t headers_count;
     HttpHeader headers[MAX_HEADERS_COUNT];

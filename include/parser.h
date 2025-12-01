@@ -6,18 +6,13 @@
 
 #include "request.h"
 
-// Minimum requirements:
-// * HTTP 1.0 and 1.1
-// * Parse GET
-// * Parse HEAD
-// * Validate Host header
 typedef struct
 {
-    char* src;
+    const char* src;
     size_t cursor;
     size_t len;
 } HttpRequestParser;
 
-bool ParseRequest(HttpRequestParser* parser, HttpRequest* request);
+bool ParseRequest(HttpRequestParser* const parser, HttpRequest* const request);
 
 #endif // PARSER_H
