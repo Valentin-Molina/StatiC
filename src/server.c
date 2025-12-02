@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -13,6 +14,16 @@
 #include "request.h"
 
 #define RECEPTION_BUFFER_SIZE 1024
+
+volatile sig_atomic_t running = true;
+
+void ServerSignalHandler(int signal_number)
+{
+    printf("Signal handler called");
+    if (signal_number == SIGINT || signal_number == SIGTERM) {
+        running = false;
+    }
+}
 
 void ShutdownServer(Server* server)
 {
@@ -46,6 +57,8 @@ void InitServer(Server* server, const char* address, uint32_t port,
     }
     // TODO: Validate the root. Must be an existing folder.
     server->root = root;
+    signal(SIGINT, &ServerSignalHandler);
+    signal(SIGTERM, &ServerSignalHandler);
     printf("Done.\n");
 }
 
@@ -54,7 +67,7 @@ bool AcceptConnection(const Server* const server, Connection* connection)
     connection->address_len = sizeof(connection->address);
     connection->connection_fd =
         accept(server->socket_fd, (struct sockaddr*)&connection->address,
-               &connection->address_len);
+               &connection->address_len); // BUG: Blocks
     if (connection->connection_fd < 0) {
         if (errno == EINTR) {
             printf("Connection listener interrupted.\n");
@@ -70,7 +83,9 @@ bool AcceptConnection(const Server* const server, Connection* connection)
 void RunServer(Server* const server)
 {
     printf("Waiting for connections... \n");
-    while (true) {
+    while (running) {
+        // FIXME: use epoll to get readable connections
+
         Connection connection = {0};
         if (!AcceptConnection(server, &connection)) {
             continue;
@@ -124,8 +139,8 @@ void RunServer(Server* const server)
         file_path[root_len] = '/';
         strncpy(file_path + root_len + 1, request.target.data,
                 request.target.len);
-        printf("Opening file %s...\n", file_path);
-        FILE* file = fopen(file_path, "rb");
+        printf("Opening file '%s' ...\n", file_path);
+        FILE* file = fopen(file_path, "rb"); // BUG: test if file exist.
         if (file) {
             printf("File open.\n");
             printf("Responding... \n");
