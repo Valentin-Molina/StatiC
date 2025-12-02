@@ -4,10 +4,16 @@
 
 #include "server.h"
 
-void print_usage(void) { printf("Usage: static [-p PORT] [-i IP_ADDRESS]\n"); }
+void print_usage(void)
+{
+    // FIXME: auto generate usage.
+    printf("Usage: static [-p PORT] [-i IP_ADDRESS] [-r ROOT_SERVER_PATH]\n");
+}
 
 int main(int argc, char** argv)
 {
+    // FIXME: improve options
+    // https://chatgpt.com/share/692f6235-2730-8006-b80f-990e9d07f05e
     const char* ip                 = "127.0.0.1";
     const char* root               = ".";
     uint32_t port                  = 8080;
